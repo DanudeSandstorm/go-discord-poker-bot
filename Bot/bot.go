@@ -10,16 +10,14 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var BotToken string
-
 func checkNilErr(e error) {
 	if e != nil {
 		log.Fatal("Error message")
 	}
 }
 
-func Run() {
-	discord, err := discordgo.New("Bot " + BotToken)
+func Run(token string) {
+	discord, err := discordgo.New("Bot " + token)
 	checkNilErr(err)
 
 	discord.AddHandler(newMessage)
