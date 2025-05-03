@@ -1,4 +1,4 @@
-module example.com/poker-bot
+module go-poker-bot
 
 go 1.24.2
 

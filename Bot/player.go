@@ -1,6 +1,8 @@
 package Bot
 
 import (
+	"go-poker-bot/Bot/util"
+
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -25,9 +27,9 @@ func (p *Player) Name() string {
 	return p.User.Username
 }
 
-// Returns the maximum bet that the player can match
+// Returns the amount of money that can be bet by the player
 func (p *Player) MaxBet() int {
-	return p.CurBet + p.Balance
+	return util.Min(p.Balance, p.CurBet+p.Balance)
 }
 
 // Increases the player's bet to match newAmount
@@ -40,15 +42,7 @@ func (p *Player) Bet(newAmount int) int {
 
 // Pays the blind amount and returns the amount paid
 func (p *Player) PayBlind(blind int) int {
-	p.CurBet = min(p.Balance, blind)
+	p.CurBet = util.Min(p.Balance, blind)
 	p.Balance -= p.CurBet
 	return p.CurBet
-}
-
-// Returns the minimum of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

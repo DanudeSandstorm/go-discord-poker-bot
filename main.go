@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	bot "example.com/poker-bot/Bot"
+	bot "go-poker-bot/Bot"
 )
 
 func main() {
