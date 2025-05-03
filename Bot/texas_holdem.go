@@ -4,6 +4,13 @@ import (
 	"go-poker-bot/Bot/util"
 )
 
+// NewTexasHoldemDeck creates a new deck for Texas Hold'em
+func NewTexasHoldemDeck() Deck {
+	suits := []string{Spade, Heart, Diamond, Club}
+	ranks := []string{"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"}
+	return NewDeck(suits, ranks)
+}
+
 // Returns the best possible 5-card hand that can be made from the five
 // community cards and a player's two hole cards
 func bestPossibleHand(community []Card, hole [2]Card) Hand {
