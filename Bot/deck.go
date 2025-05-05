@@ -25,13 +25,17 @@ func NewDeck(suits []string, ranks []string) Deck {
 		}
 	}
 
-	// Shuffle the deck
+	d.Shuffle()
+
+	return d
+}
+
+// Shuffle shuffles the deck
+func (d *Deck) Shuffle() {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	r.Shuffle(len(d.cards), func(i, j int) {
 		d.cards[i], d.cards[j] = d.cards[j], d.cards[i]
 	})
-
-	return d
 }
 
 // Deal deals n cards from the top of the deck
