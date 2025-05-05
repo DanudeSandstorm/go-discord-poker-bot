@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -331,16 +330,7 @@ func handleEndGame(s *discordgo.Session, m *discordgo.MessageCreate, game *Game)
 
 func handleOptions(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, args []string) {
 	if len(args) == 0 {
-		// Show current options
-		options := game.GetOptions()
-		status := fmt.Sprintf("Current game options:\n"+
-			"Small Blind: $%d\n"+
-			"Big Blind: $%d\n"+
-			"Min Buy-In: $%d\n"+
-			"Max Buy-In: $%d\n"+
-			"Blind Raise Delay: %d minutes (0 = off)",
-			options.SmallBlind, options.BigBlind, options.MinBuyIn, options.MaxBuyIn, options.RaiseDelay)
-		s.ChannelMessageSend(m.ChannelID, status)
+		s.ChannelMessageSend(m.ChannelID, game.ListOptions())
 		return
 	}
 
@@ -354,60 +344,10 @@ func handleOptions(s *discordgo.Session, m *discordgo.MessageCreate, game *Game,
 		return
 	}
 
-	option := strings.ToLower(args[0])
-	amount, err := strconv.Atoi(args[1])
-	if err != nil {
-		s.ChannelMessageSend(m.ChannelID, "Invalid amount!")
-		return
+	messages := game.SetOption(args)
+	for _, msg := range messages {
+		s.ChannelMessageSend(m.ChannelID, msg)
 	}
-
-	options := game.GetOptions()
-	switch option {
-	case "sb":
-		if amount <= 0 {
-			s.ChannelMessageSend(m.ChannelID, "Small blind must be greater than 0!")
-			return
-		}
-		if amount >= options.BigBlind {
-			s.ChannelMessageSend(m.ChannelID, "Small blind must be less than big blind!")
-			return
-		}
-		options.SmallBlind = amount
-	case "bb":
-		if amount <= options.SmallBlind {
-			s.ChannelMessageSend(m.ChannelID, "Big blind must be greater than small blind!")
-			return
-		}
-		options.BigBlind = amount
-	case "min":
-		if amount <= 0 {
-			s.ChannelMessageSend(m.ChannelID, "Min buy-in must be greater than 0!")
-			return
-		}
-		if amount >= options.MaxBuyIn {
-			s.ChannelMessageSend(m.ChannelID, "Min buy-in must be less than max buy-in!")
-			return
-		}
-		options.MinBuyIn = amount
-	case "max":
-		if amount <= options.MinBuyIn {
-			s.ChannelMessageSend(m.ChannelID, "Max buy-in must be greater than min buy-in!")
-			return
-		}
-		options.MaxBuyIn = amount
-	case "delay":
-		if amount < 0 {
-			s.ChannelMessageSend(m.ChannelID, "Delay must be 0 or greater!")
-			return
-		}
-		options.RaiseDelay = amount
-	default:
-		s.ChannelMessageSend(m.ChannelID, "Invalid option! Use sb, bb, min, max, or delay")
-		return
-	}
-
-	game.SetOptions(options)
-	s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s set to %d", option, amount))
 }
 
 func handleHelp(s *discordgo.Session, m *discordgo.MessageCreate) {
