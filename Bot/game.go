@@ -113,6 +113,15 @@ func (g *Game) GetDealer() *Player {
 	return g.Players[g.DealerIndex]
 }
 
+func (g *Game) GetPlayer(user *discordgo.User) *Player {
+	for _, p := range g.Players {
+		if p.User.ID == user.ID {
+			return p
+		}
+	}
+	return nil
+}
+
 func (g Game) IsPlayer(user *discordgo.User) bool {
 	for _, p := range g.Players {
 		if p.User.ID == user.ID {
@@ -122,18 +131,15 @@ func (g Game) IsPlayer(user *discordgo.User) bool {
 	return false
 }
 
-func (g *Game) AddPlayer(user *discordgo.User) bool {
-	if g.IsPlayer(user) {
-		return false
-	}
+func (g *Game) AddPlayer(user *discordgo.User, name string) {
 	g.Players = append(g.Players, &Player{
 		User:    user,
 		Balance: g.Options.MinBuyIn,
+		Name:    name,
 	})
-	return true
 }
 
-func (g *Game) BuyIn(user *discordgo.User, amount int) []string {
+func (g *Game) BuyIn(user *discordgo.User, amount int, newPlayer bool) []string {
 	if amount < g.Options.MinBuyIn {
 		return []string{fmt.Sprintf("You must buy in for at least $%d!", g.Options.MinBuyIn)}
 	}
@@ -142,29 +148,24 @@ func (g *Game) BuyIn(user *discordgo.User, amount int) []string {
 		return []string{fmt.Sprintf("You can't buy in for more than $%d!", g.Options.MaxBuyIn)}
 	}
 
-	// update balance of existing player
-	for _, player := range g.Players {
-		if player.User.ID == user.ID {
-			player.Balance += amount
-			return []string{fmt.Sprintf("Increased your balance by $%d. You now have $%d.", amount, player.Balance)}
-		}
-	}
+	// update balance of a player
+	player := g.GetPlayer(user)
 
-	// add new player
-	g.AddPlayer(user)
-	player := g.Players[len(g.Players)-1]
-	player.Balance += amount
-	return []string{fmt.Sprintf("You've bought in for $%d. You now have $%d.", amount, player.Balance)}
+	if newPlayer {
+		return []string{fmt.Sprintf("You've bought in for $%d.", amount)}
+	} else {
+		return []string{fmt.Sprintf("Increased your balance by $%d. You now have $%d.", amount, player.Balance)}
+	}
 }
 
 func (g *Game) StatusBetweenRounds() []string {
 	messages := []string{}
 	if g.Verbose {
 		for _, player := range g.Players {
-			messages = append(messages, fmt.Sprintf("%s has $%d.", player.Name(), player.Balance))
+			messages = append(messages, fmt.Sprintf("%s has $%d.", player.Name, player.Balance))
 		}
 	}
-	messages = append(messages, fmt.Sprintf("%s is the current dealer. Message !deal when you're ready.", g.GetDealer().Name()))
+	messages = append(messages, fmt.Sprintf("%s is the current dealer. Message !deal when you're ready.", g.GetDealer().Name))
 	return messages
 }
 
@@ -209,17 +210,17 @@ func (g *Game) PayBlinds() []string {
 		g.FirstBettor = (g.DealerIndex + 1) % len(g.Players)
 	}
 
-	messages = append(messages, fmt.Sprintf("%s has paid the small blind of $%d.", smallPlayer.Name(), smallBlind))
+	messages = append(messages, fmt.Sprintf("%s has paid the small blind of $%d.", smallPlayer.Name, smallBlind))
 
 	if g.PotManager.PayBlind(smallPlayer, smallBlind) {
-		messages = append(messages, fmt.Sprintf("%s is all in!", smallPlayer.Name()))
+		messages = append(messages, fmt.Sprintf("%s is all in!", smallPlayer.Name))
 		g.LeaveHand(smallPlayer)
 	}
 
-	messages = append(messages, fmt.Sprintf("%s has paid the big blind of $%d.", bigPlayer.Name(), bigBlind))
+	messages = append(messages, fmt.Sprintf("%s has paid the big blind of $%d.", bigPlayer.Name, bigBlind))
 
 	if g.PotManager.PayBlind(bigPlayer, bigBlind) {
-		messages = append(messages, fmt.Sprintf("%s is all in!", bigPlayer.Name()))
+		messages = append(messages, fmt.Sprintf("%s is all in!", bigPlayer.Name))
 		g.LeaveHand(bigPlayer)
 	}
 
@@ -243,14 +244,14 @@ func (g *Game) Showdown() []string {
 	messages = append(messages, strings.Join(communityStr, "  "))
 
 	for player := range g.PotManager.InPot() {
-		messages = append(messages, fmt.Sprintf("%s's hand: %s", player.Name(), player.PrintHand()))
+		messages = append(messages, fmt.Sprintf("%s's hand: %s", player.Name, player.PrintHand()))
 	}
 
 	winners := g.PotManager.GetWinners(g.Community)
 
 	for winner, winnings := range winners {
 		handName := g.PotManager.BestHandFunc(winner.Cards, g.Community)
-		messages = append(messages, fmt.Sprintf("%s wins $%d with a %s.", winner.Name(), winnings, handName))
+		messages = append(messages, fmt.Sprintf("%s wins $%d with a %s.", winner.Name, winnings, handName))
 		winner.Balance += winnings
 	}
 
@@ -261,11 +262,11 @@ func (g *Game) Showdown() []string {
 		if player.Balance > 0 {
 			i++
 		} else {
-			messages = append(messages, fmt.Sprintf("%s has been knocked out of the game!", player.Name()))
+			messages = append(messages, fmt.Sprintf("%s has been knocked out of the game!", player.Name))
 			g.Players = append(g.Players[:i], g.Players[i+1:]...)
 			if len(g.Players) == 1 {
 				// There's only one player, so they win
-				messages = append(messages, fmt.Sprintf("%s wins the game! Congratulations!", g.Players[0].Name()))
+				messages = append(messages, fmt.Sprintf("%s wins the game! Congratulations!", g.Players[0].Name))
 				g.State = NoGame
 				return messages
 			}
@@ -289,7 +290,7 @@ func (g *Game) Fold() []string {
 	var messages []string
 
 	if g.Verbose {
-		messages = append(messages, fmt.Sprintf("%s has folded.", g.GetCurrentPlayer().Name()))
+		messages = append(messages, fmt.Sprintf("%s has folded.", g.GetCurrentPlayer().Name))
 	}
 
 	g.PotManager.HandleFold(g.GetCurrentPlayer())
@@ -303,7 +304,7 @@ func (g *Game) Fold() []string {
 			winner = p
 			break
 		}
-		messages = append(messages, fmt.Sprintf("%s wins $%d!", winner.Name(), g.PotManager.Value()))
+		messages = append(messages, fmt.Sprintf("%s wins $%d!", winner.Name, g.PotManager.Value()))
 		winner.Balance += g.PotManager.Value()
 		g.State = NoHands
 		g.NextDealer()
@@ -326,11 +327,11 @@ func (g *Game) Call() []string {
 	g.PotManager.HandleCall(g.GetCurrentPlayer())
 
 	if g.Verbose {
-		messages = append(messages, fmt.Sprintf("%s calls.", g.GetCurrentPlayer().Name()))
+		messages = append(messages, fmt.Sprintf("%s calls.", g.GetCurrentPlayer().Name))
 	}
 
 	if g.GetCurrentPlayer().Balance == 0 {
-		messages = append(messages, fmt.Sprintf("%s is all in!", g.GetCurrentPlayer().Name()))
+		messages = append(messages, fmt.Sprintf("%s is all in!", g.GetCurrentPlayer().Name))
 		g.LeaveHand(g.GetCurrentPlayer())
 		g.TurnIndex -= 1
 	}
@@ -344,11 +345,11 @@ func (g *Game) Raise(amount int) []string {
 	g.PotManager.HandleRaise(g.GetCurrentPlayer(), amount)
 
 	if g.Verbose {
-		messages = append(messages, fmt.Sprintf("%s raises by $%d.", g.GetCurrentPlayer().Name(), amount))
+		messages = append(messages, fmt.Sprintf("%s raises by $%d.", g.GetCurrentPlayer().Name, amount))
 	}
 
 	if g.GetCurrentPlayer().Balance == 0 {
-		messages = append(messages, fmt.Sprintf("%s is all in!", g.GetCurrentPlayer().Name()))
+		messages = append(messages, fmt.Sprintf("%s is all in!", g.GetCurrentPlayer().Name))
 		g.LeaveHand(g.GetCurrentPlayer())
 		g.TurnIndex -= 1
 	}
@@ -362,7 +363,7 @@ func (g *Game) Check() []string {
 	g.GetCurrentPlayer().PlacedBet = true
 
 	if g.Verbose {
-		messages = append(messages, fmt.Sprintf("%s calls.", g.GetCurrentPlayer().Name()))
+		messages = append(messages, fmt.Sprintf("%s calls.", g.GetCurrentPlayer().Name))
 	}
 
 	return append(messages, g.NextTurn()...)
@@ -445,20 +446,24 @@ func (g *Game) NextTurn() []string {
 
 func (g *Game) CurOptions() []string {
 	messages := []string{
-		fmt.Sprintf("It is %s's turn. Current balance is $%d. The pot is currently $%d.",
+		fmt.Sprintf("It is %s's turn. Current balance is $%d.",
 			g.GetCurrentPlayer().User.Mention(),
 			g.GetCurrentPlayer().Balance,
-			g.PotManager.Value()),
+		),
 	}
 
 	curBet := g.PotManager.CurBet()
 	if curBet > 0 {
-		messages = append(messages, fmt.Sprintf("The current bet to meet is $%d, and %s has bet $%d.",
+		messages = append(messages, fmt.Sprintf("The pot is currently $%d. The current bet to meet is $%d, and %s has bet $%d.",
+			g.PotManager.Value(),
 			curBet,
-			g.GetCurrentPlayer().Name(),
+			g.GetCurrentPlayer().Name,
 			g.GetCurrentPlayer().CurBet))
 	} else {
-		messages = append(messages, fmt.Sprintf("The current bet to meet is $%d.", curBet))
+		messages = append(messages, fmt.Sprintf("The pot is currently $%d. The current bet to meet is $%d.",
+			g.PotManager.Value(),
+			curBet,
+		))
 	}
 
 	if g.Verbose {
@@ -509,7 +514,7 @@ func (g *Game) DealHands() []string {
 func (g *Game) EndGame() []string {
 	messages := []string{"Game has been ended."}
 	for _, player := range g.Players {
-		messages = append(messages, fmt.Sprintf("%s has $%d.", player.Name(), player.Balance))
+		messages = append(messages, fmt.Sprintf("%s has $%d.", player.Name, player.Balance))
 	}
 
 	g.State = NoGame
@@ -580,4 +585,9 @@ func (g *Game) SetOption(args []string) string {
 func (g *Game) ToggleVerbose() string {
 	g.Verbose = !g.Verbose
 	return fmt.Sprintf("Verbose mode is now %t", g.Verbose)
+}
+
+func (g *Game) IsCurrentPlayer(user *discordgo.User) bool {
+	currentPlayer := g.GetCurrentPlayer()
+	return currentPlayer != nil && currentPlayer.User.ID == user.ID
 }

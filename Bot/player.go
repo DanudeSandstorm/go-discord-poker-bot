@@ -19,14 +19,8 @@ type Player struct {
 	CurBet int
 	// Whether the player has placed a bet yet this round
 	PlacedBet bool
-}
-
-// Returns the player's display name
-func (p *Player) Name() string {
-	if p.User.GlobalName != "" {
-		return p.User.GlobalName
-	}
-	return p.User.Username
+	// The player's display name
+	Name string
 }
 
 // Returns the amount of money that can be bet by the player

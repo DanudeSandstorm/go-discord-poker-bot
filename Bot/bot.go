@@ -139,7 +139,7 @@ func handleJoin(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	if game.AddPlayer(m.Author) {
+	if AddPlayer(s, m, game) {
 		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s has joined the game!", m.Author.GlobalName))
 		return
 	}
@@ -171,8 +171,8 @@ func handleFold(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	currentPlayer := game.GetCurrentPlayer()
-	if currentPlayer == nil || currentPlayer.User.ID != m.Author.ID {
+	// Check if it's the current player's turn
+	if !game.IsCurrentPlayer(m.Author) {
 		s.ChannelMessageSend(m.ChannelID, "It's not your turn!")
 		return
 	}
@@ -189,8 +189,8 @@ func handleCall(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	currentPlayer := game.GetCurrentPlayer()
-	if currentPlayer == nil || currentPlayer.User.ID != m.Author.ID {
+	// Check if it's the current player's turn
+	if !game.IsCurrentPlayer(m.Author) {
 		s.ChannelMessageSend(m.ChannelID, "It's not your turn!")
 		return
 	}
@@ -207,8 +207,8 @@ func handleRaise(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, a
 		return
 	}
 
-	currentPlayer := game.GetCurrentPlayer()
-	if currentPlayer == nil || currentPlayer.User.ID != m.Author.ID {
+	// Check if it's the current player's turn
+	if !game.IsCurrentPlayer(m.Author) {
 		s.ChannelMessageSend(m.ChannelID, "It's not your turn!")
 		return
 	}
@@ -237,8 +237,8 @@ func handleCheck(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	currentPlayer := game.GetCurrentPlayer()
-	if currentPlayer == nil || currentPlayer.User.ID != m.Author.ID {
+	// Check if it's the current player's turn
+	if !game.IsCurrentPlayer(m.Author) {
 		s.ChannelMessageSend(m.ChannelID, "It's not your turn!")
 		return
 	}
@@ -267,7 +267,9 @@ func handleBuyIn(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, a
 		return
 	}
 
-	messages := game.BuyIn(m.Author, amount)
+	newPlayer := AddPlayer(s, m, game)
+
+	messages := game.BuyIn(m.Author, amount, newPlayer)
 	for _, msg := range messages {
 		s.ChannelMessageSend(m.ChannelID, msg)
 	}
@@ -300,7 +302,7 @@ func handleCount(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 
 	status := "Player balances:"
 	for _, p := range players {
-		status += fmt.Sprintf("\n- %s: $%d", p.Name(), p.Balance)
+		status += fmt.Sprintf("\n- %s: $%d", p.Name, p.Balance)
 	}
 
 	s.ChannelMessageSend(m.ChannelID, status)
@@ -312,8 +314,8 @@ func handleAllIn(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	currentPlayer := game.GetCurrentPlayer()
-	if currentPlayer == nil || currentPlayer.User.ID != m.Author.ID {
+	// Check if it's the current player's turn
+	if !game.IsCurrentPlayer(m.Author) {
 		s.ChannelMessageSend(m.ChannelID, "It's not your turn!")
 		return
 	}
@@ -372,10 +374,26 @@ func TellHands(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 			log.Fatal("Error sending DM message:", err)
 			s.ChannelMessageSend(
 				m.ChannelID,
-				fmt.Sprintf("Failed to send %s a DM. Did you disable DM in your privacy settings?", player.Name()),
+				fmt.Sprintf("Failed to send %s a DM. Did you disable DM in your privacy settings?", player.Name),
 			)
 		}
 	}
+}
+
+// Wrapper to set a player's nickname if it exists
+func AddPlayer(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) bool {
+	if game.IsPlayer(m.Author) {
+		return false
+	}
+	member, err := s.GuildMember(m.GuildID, m.Author.ID)
+	name := m.Author.Username
+	if err == nil && member.Nick != "" {
+		name = member.Nick
+	} else if m.Author.GlobalName != "" {
+		name = m.Author.GlobalName
+	}
+	game.AddPlayer(m.Author, name)
+	return true
 }
 
 func handleHelp(s *discordgo.Session, m *discordgo.MessageCreate) {
