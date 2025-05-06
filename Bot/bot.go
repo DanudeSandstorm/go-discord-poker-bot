@@ -118,6 +118,8 @@ func (b *Bot) newMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		handleEndGame(s, m, game)
 	case "options":
 		handleOptions(s, m, game, args)
+	case "verbose":
+		handleVerbose(s, m, game)
 	}
 }
 
@@ -137,8 +139,12 @@ func handleJoin(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	game.AddPlayer(m.Author)
-	s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s has joined the game!", m.Author.Username))
+	if game.AddPlayer(m.Author) {
+		s.ChannelMessageSend(m.ChannelID, fmt.Sprintf("%s has joined the game!", m.Author.GlobalName))
+		return
+	}
+
+	s.ChannelMessageSend(m.ChannelID, "You're already in the game!")
 }
 
 func handleStart(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
@@ -156,6 +162,7 @@ func handleStart(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 	for _, msg := range messages {
 		s.ChannelMessageSend(m.ChannelID, msg)
 	}
+	TellHands(s, m, game)
 }
 
 func handleFold(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
@@ -276,6 +283,7 @@ func handleDeal(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 	for _, msg := range messages {
 		s.ChannelMessageSend(m.ChannelID, msg)
 	}
+	TellHands(s, m, game)
 }
 
 func handleCount(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
@@ -292,7 +300,7 @@ func handleCount(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 
 	status := "Player balances:"
 	for _, p := range players {
-		status += fmt.Sprintf("\n- %s: $%d", p.User.Username, p.Balance)
+		status += fmt.Sprintf("\n- %s: $%d", p.Name(), p.Balance)
 	}
 
 	s.ChannelMessageSend(m.ChannelID, status)
@@ -344,9 +352,29 @@ func handleOptions(s *discordgo.Session, m *discordgo.MessageCreate, game *Game,
 		return
 	}
 
-	messages := game.SetOption(args)
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
+	s.ChannelMessageSend(m.ChannelID, game.SetOption(args))
+}
+
+func handleVerbose(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
+	s.ChannelMessageSend(m.ChannelID, game.ToggleVerbose())
+}
+
+func TellHands(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
+	// for each player, send them a private message containing their dealt cards
+	for _, player := range game.Players {
+		channel, err := s.UserChannelCreate(player.User.ID)
+		if err != nil {
+			log.Fatal("Error fetching user:", err)
+		}
+
+		_, err = s.ChannelMessageSend(channel.ID, fmt.Sprintf("Your cards are: %s", player.PrintHand()))
+		if err != nil {
+			log.Fatal("Error sending DM message:", err)
+			s.ChannelMessageSend(
+				m.ChannelID,
+				fmt.Sprintf("Failed to send %s a DM. Did you disable DM in your privacy settings?", player.Name()),
+			)
+		}
 	}
 }
 
@@ -365,7 +393,8 @@ func handleHelp(s *discordgo.Session, m *discordgo.MessageCreate) {
 !count - Show player balances
 !options [sb|bb|min|max|delay] <amount> - Show or set game options
 !endgame - End the current game
-!help - Show this help message`
+!help - Show this help message
+!verbose - Toggle verbose output mode`
 
 	s.ChannelMessageSend(m.ChannelID, help)
 }
