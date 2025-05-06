@@ -1,6 +1,8 @@
 package Bot
 
 import (
+	"strings"
+
 	"go-poker-bot/Bot/util"
 
 	"github.com/bwmarrin/discordgo"
@@ -45,4 +47,12 @@ func (p *Player) PayBlind(blind int) int {
 	p.CurBet = util.Min(p.Balance, blind)
 	p.Balance -= p.CurBet
 	return p.CurBet
+}
+
+func (p *Player) PrintHand() string {
+	cardsStr := make([]string, len(p.Cards))
+	for i, card := range p.Cards {
+		cardsStr[i] = card.String()
+	}
+	return strings.Join(cardsStr, " ")
 }
