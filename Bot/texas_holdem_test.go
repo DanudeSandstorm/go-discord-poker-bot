@@ -1021,12 +1021,12 @@ func TestPlayerHandComparison(t *testing.T) {
 				}
 			} else {
 				// should be a tie
-				if hand1.Equal(hand2) {
-					if hand1.Less(hand2) {
-						t.Errorf("should be a tie but hand1.Less(hand2) returned true")
-					} else {
-						t.Errorf("should be a tie but hand2.Less(hand1) returned true")
-					}
+				if hand1.Less(hand2) {
+					t.Errorf("should be a tie but hand1.Less(hand2) returned true")
+					t.Logf("player1 hand: %v", hand1)
+					t.Logf("player2 hand: %v", hand2)
+				} else if hand2.Less(hand1) {
+					t.Errorf("should be a tie but hand2.Less(hand1) returned true")
 					t.Logf("player1 hand: %v", hand1)
 					t.Logf("player2 hand: %v", hand2)
 				}
