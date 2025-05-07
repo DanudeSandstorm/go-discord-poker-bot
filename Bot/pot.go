@@ -14,16 +14,13 @@ type Pot struct {
 	Amount int
 	// The maximum bet that can be held by this pot before it needs a side pot
 	MaxBet int
-	// Function to determine the best possible hand for a player
-	BestHandFunc BestHandFunc
 }
 
-func NewPot(players map[*Player]struct{}, bestHandFunc BestHandFunc) Pot {
+func NewPot(players map[*Player]struct{}) Pot {
 	p := Pot{
-		Players:      players,
-		CurBet:       0,
-		Amount:       0,
-		BestHandFunc: bestHandFunc,
+		Players: players,
+		CurBet:  0,
+		Amount:  0,
 	}
 
 	if len(players) > 0 {
@@ -44,12 +41,12 @@ func NewPot(players map[*Player]struct{}, bestHandFunc BestHandFunc) Pot {
 }
 
 // Returns which players win this pot, based on the given community cards
-func (p Pot) GetWinners(community []Card) []*Player {
+func (p Pot) GetWinners(community []Card, bestHandFunc BestHandFunc) []*Player {
 	var winners []*Player
 	var bestHand Hand
 
 	for player := range p.Players {
-		hand := p.BestHandFunc(community, []Card{player.Cards[0], player.Cards[1]})
+		hand := bestHandFunc(community, player.Cards)
 		if bestHand.Rank == 0 || bestHand.Less(hand) {
 			winners = []*Player{player}
 			bestHand = hand
@@ -78,7 +75,7 @@ func (p Pot) MakeSidePot() Pot {
 		}
 	}
 
-	return NewPot(newPlayers, p.BestHandFunc)
+	return NewPot(newPlayers)
 }
 
 type PotManager struct {
@@ -86,14 +83,11 @@ type PotManager struct {
 	// If nobody's all-in, there should only be one pot
 	// Higher-priced pots are towards the end of the list
 	Pots []Pot
-	// Function to determine the best possible hand for a player
-	BestHandFunc BestHandFunc
 }
 
-func NewPotManager(bestHandFunc BestHandFunc) PotManager {
+func NewPotManager() PotManager {
 	return PotManager{
-		Pots:         make([]Pot, 0),
-		BestHandFunc: bestHandFunc,
+		Pots: make([]Pot, 0),
 	}
 }
 
@@ -104,7 +98,7 @@ func (pm *PotManager) NewHand(players []*Player) {
 	for _, player := range players {
 		playerSet[player] = struct{}{}
 	}
-	pm.Pots = []Pot{NewPot(playerSet, pm.BestHandFunc)}
+	pm.Pots = []Pot{NewPot(playerSet)}
 }
 
 // Returns the current bet to be matched
@@ -216,10 +210,10 @@ func (pm PotManager) BettingOver() bool {
 }
 
 // Returns the winners of the pot, and the amounts that they won
-func (pm PotManager) GetWinners(sharedCards []Card) map[*Player]int {
+func (pm PotManager) GetWinners(sharedCards []Card, bestHandFunc BestHandFunc) map[*Player]int {
 	winners := make(map[*Player]int)
 	for _, pot := range pm.Pots {
-		potWinners := pot.GetWinners(sharedCards)
+		potWinners := pot.GetWinners(sharedCards, bestHandFunc)
 		if len(potWinners) == 0 {
 			continue
 		}

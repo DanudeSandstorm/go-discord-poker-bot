@@ -9,13 +9,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-// GameType represents the type of poker game being played
-type GameType int
-
-const (
-	TexasHoldemType GameType = iota
-)
-
 // GameState represents the current state of the game
 type GameState int
 
@@ -41,7 +34,7 @@ type GameOptions struct {
 // Game represents the state of a poker game
 type Game struct {
 	// The type of poker game being played
-	Type GameType
+	Type *PokerType
 	// The pot manager for the game
 	PotManager PotManager
 	// The deck of cards
@@ -72,9 +65,9 @@ func NewGame() *Game {
 	// uses texas holdem by default
 	gt := NewTexasHoldem()
 	return &Game{
-		Type:       TexasHoldemType,
+		Type:       &gt,
 		State:      NoGame,
-		PotManager: NewPotManager(gt.BestHand),
+		PotManager: NewPotManager(),
 		Deck:       gt.Deck,
 		Community:  make([]Card, 0),
 		Players:    make([]*Player, 0),
@@ -247,10 +240,10 @@ func (g *Game) Showdown() []string {
 		messages = append(messages, fmt.Sprintf("%s's hand: %s", player.Name, player.PrintHand()))
 	}
 
-	winners := g.PotManager.GetWinners(g.Community)
+	winners := g.PotManager.GetWinners(g.Community, g.Type.BestHand)
 
 	for winner, winnings := range winners {
-		handName := g.PotManager.BestHandFunc(winner.Cards, g.Community)
+		handName := g.Type.BestHand(g.Community, winner.Cards)
 		messages = append(messages, fmt.Sprintf("%s wins $%d with a %s.", winner.Name, winnings, handName))
 		winner.Balance += winnings
 	}
@@ -489,7 +482,7 @@ func (g *Game) DealHands() []string {
 	// adding them as being in on the hand
 	g.InHand = make([]*Player, 0)
 	for _, player := range g.Players {
-		player.Cards = g.Deck.Deal(2)
+		player.Cards = g.Type.DealHand()
 		player.CurBet = 0
 		player.PlacedBet = false
 		g.InHand = append(g.InHand, player)

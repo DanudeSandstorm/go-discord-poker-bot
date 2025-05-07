@@ -9,9 +9,14 @@ func NewTexasHoldem() PokerType {
 	suits := []string{Spade, Heart, Diamond, Club}
 	ranks := []string{"2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"}
 
+	deck := NewDeck(suits, ranks)
 	return PokerType{
-		Deck:     NewDeck(suits, ranks),
+		GameType: TexasHoldemType,
+		Deck:     deck,
 		BestHand: TexasHoldemBestHand,
+		DealHand: func() []Card {
+			return deck.Deal(2)
+		},
 	}
 }
 
