@@ -1,6 +1,6 @@
 # Go Poker Bot
 
-A Discord poker bot written in Go.
+A Discord poker bot written in Go. Adapted from [samcoppini's](https://github.com/samcoppini/Discord-Poker-Bot) python bot
 
 ## Installation
 
