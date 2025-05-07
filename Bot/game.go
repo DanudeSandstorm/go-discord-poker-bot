@@ -165,7 +165,7 @@ func (g *Game) StatusBetweenRounds() []string {
 			messages = append(messages, fmt.Sprintf("%s has $%d.", player.Name, player.Balance))
 		}
 	}
-	messages = append(messages, fmt.Sprintf("%s is the current dealer. Message !deal when you're ready.", g.GetDealer().Name))
+	messages = append(messages, fmt.Sprintf("%s is the current dealer. Message !deal when you're ready.", g.GetDealer().User.Mention()))
 	return messages
 }
 
