@@ -11,13 +11,13 @@ func NewTexasHoldem() PokerType {
 
 	return PokerType{
 		Deck:     NewDeck(suits, ranks),
-		BestHand: bestHand,
+		BestHand: TexasHoldemBestHand,
 	}
 }
 
 // Returns the best possible 5-card hand that can be made from the five
 // community cards and a player's two hole cards
-func bestHand(community []Card, hole []Card) Hand {
+func TexasHoldemBestHand(community []Card, hole []Card) Hand {
 	// Combine all cards
 	allCards := append(community, hole...)
 
@@ -25,7 +25,7 @@ func bestHand(community []Card, hole []Card) Hand {
 	var best Hand
 	for handCards := range util.Combinations(allCards, 5) {
 		hand := NewHand(handCards)
-		if best.Rank == 0 || hand.Less(best) {
+		if best.Rank == 0 || best.Less(hand) {
 			best = hand
 		}
 	}

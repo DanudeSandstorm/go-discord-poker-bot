@@ -50,7 +50,7 @@ func (p Pot) GetWinners(community []Card) []*Player {
 
 	for player := range p.Players {
 		hand := p.BestHandFunc(community, []Card{player.Cards[0], player.Cards[1]})
-		if bestHand.Rank == 0 || hand.Less(bestHand) {
+		if bestHand.Rank == 0 || bestHand.Less(hand) {
 			winners = []*Player{player}
 			bestHand = hand
 		} else if hand.Equal(bestHand) {
