@@ -116,6 +116,8 @@ func (b *Bot) newMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		handleAllIn(s, m, game)
 	case "endgame":
 		handleEndGame(s, m, game)
+	case "change":
+		handleChangeGame(s, m, game, args)
 	case "options":
 		handleOptions(s, m, game, args)
 	case "verbose":
@@ -158,10 +160,7 @@ func handleStart(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	messages := game.DealHands()
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
-	}
+	SendMessages(s, m, game.DealHands())
 	TellHands(s, m, game)
 }
 
@@ -177,10 +176,7 @@ func handleFold(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	messages := game.Fold()
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
-	}
+	SendMessages(s, m, game.Fold())
 }
 
 func handleCall(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
@@ -195,10 +191,7 @@ func handleCall(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	messages := game.Call()
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
-	}
+	SendMessages(s, m, game.Call())
 }
 
 func handleRaise(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, args []string) {
@@ -225,10 +218,7 @@ func handleRaise(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, a
 		return
 	}
 
-	messages := game.Raise(amount)
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
-	}
+	SendMessages(s, m, game.Raise(amount))
 }
 
 func handleCheck(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
@@ -243,18 +233,10 @@ func handleCheck(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	messages := game.Check()
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
-	}
+	SendMessages(s, m, game.Check())
 }
 
 func handleBuyIn(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, args []string) {
-	if game.GetState() != Waiting {
-		s.ChannelMessageSend(m.ChannelID, "No game is waiting for players!")
-		return
-	}
-
 	if len(args) != 1 {
 		s.ChannelMessageSend(m.ChannelID, "Usage: !buyin <amount>")
 		return
@@ -269,10 +251,7 @@ func handleBuyIn(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, a
 
 	newPlayer := AddPlayer(s, m, game)
 
-	messages := game.BuyIn(m.Author, amount, newPlayer)
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
-	}
+	SendMessages(s, m, game.BuyIn(m.Author, amount, newPlayer))
 }
 
 func handleDeal(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
@@ -281,10 +260,7 @@ func handleDeal(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	messages := game.DealHands()
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
-	}
+	SendMessages(s, m, game.DealHands())
 	TellHands(s, m, game)
 }
 
@@ -320,10 +296,7 @@ func handleAllIn(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
 		return
 	}
 
-	messages := game.AllIn()
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
-	}
+	SendMessages(s, m, game.AllIn())
 }
 
 func handleEndGame(s *discordgo.Session, m *discordgo.MessageCreate, game *Game) {
@@ -332,10 +305,23 @@ func handleEndGame(s *discordgo.Session, m *discordgo.MessageCreate, game *Game)
 		return
 	}
 
-	messages := game.EndGame()
-	for _, msg := range messages {
-		s.ChannelMessageSend(m.ChannelID, msg)
+	SendMessages(s, m, game.EndGame())
+}
+
+func handleChangeGame(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, args []string) {
+	if !game.BetweenHands() {
+		s.ChannelMessageSend(m.ChannelID, "Cannot change game type in the middle of a hand!")
+		return
 	}
+
+	if len(args) != 1 {
+		s.ChannelMessageSend(m.ChannelID, "Usage: !change <holdem|plo>")
+		return
+	}
+
+	gameType := args[0]
+	message := game.ChangeGameType(gameType)
+	s.ChannelMessageSend(m.ChannelID, message)
 }
 
 func handleOptions(s *discordgo.Session, m *discordgo.MessageCreate, game *Game, args []string) {
@@ -344,7 +330,7 @@ func handleOptions(s *discordgo.Session, m *discordgo.MessageCreate, game *Game,
 		return
 	}
 
-	if game.GetState() != Waiting && game.GetState() != HandsDealt {
+	if !game.BetweenHands() {
 		s.ChannelMessageSend(m.ChannelID, "Can only set options between hands!")
 		return
 	}
@@ -411,8 +397,16 @@ func handleHelp(s *discordgo.Session, m *discordgo.MessageCreate) {
 !count - Show player balances
 !options [sb|bb|min|max|delay] <amount> - Show or set game options
 !endgame - End the current game
+!change <holdem|plo> - Change the game type
 !help - Show this help message
 !verbose - Toggle verbose output mode`
 
 	s.ChannelMessageSend(m.ChannelID, help)
+}
+
+// SendMessages sends multiple messages to a channel with a delay between them
+func SendMessages(s *discordgo.Session, m *discordgo.MessageCreate, messages []string) {
+	for _, msg := range messages {
+		s.ChannelMessageSend(m.ChannelID, msg)
+	}
 }

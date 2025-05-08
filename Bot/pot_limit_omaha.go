@@ -17,6 +17,9 @@ func NewPotLimitOmaha() PokerType {
 		DealHand: func() []Card {
 			return deck.Deal(4)
 		},
+		String: func() string {
+			return "Pot Limit Omaha"
+		},
 	}
 }
 

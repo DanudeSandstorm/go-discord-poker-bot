@@ -17,4 +17,5 @@ type PokerType struct {
 	Deck     Deck
 	BestHand BestHandFunc
 	DealHand func() []Card
+	String   func() string
 }

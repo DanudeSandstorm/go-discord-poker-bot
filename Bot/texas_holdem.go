@@ -17,6 +17,9 @@ func NewTexasHoldem() PokerType {
 		DealHand: func() []Card {
 			return deck.Deal(2)
 		},
+		String: func() string {
+			return "Texas Hold'em"
+		},
 	}
 }
 

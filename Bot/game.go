@@ -514,6 +514,22 @@ func (g *Game) EndGame() []string {
 	return messages
 }
 
+func (g *Game) ChangeGameType(gameType string) string {
+	var newType PokerType
+	switch strings.ToLower(gameType) {
+	case "holdem":
+		newType = NewTexasHoldem()
+	case "plo":
+		newType = NewPotLimitOmaha()
+	default:
+		return "Invalid game type! Use 'holdem' or 'plo'"
+	}
+
+	g.Type = &newType
+	g.Deck = newType.Deck
+	return fmt.Sprintf("Game type changed to %s", newType.String())
+}
+
 // ListOptions returns a string listing the current game options
 func (g *Game) ListOptions() string {
 	return fmt.Sprintf("Current game options:\n"+
@@ -583,4 +599,8 @@ func (g *Game) ToggleVerbose() string {
 func (g *Game) IsCurrentPlayer(user *discordgo.User) bool {
 	currentPlayer := g.GetCurrentPlayer()
 	return currentPlayer != nil && currentPlayer.User.ID == user.ID
+}
+
+func (g *Game) BetweenHands() bool {
+	return g.State == NoGame || g.State == Waiting || g.State == NoHands
 }
