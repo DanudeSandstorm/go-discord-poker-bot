@@ -80,6 +80,7 @@ func (b *Bot) newMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 		"f":   "fold",
 		"r":   "raise",
 		"x":   "check",
+		"pot": "allin",
 	}
 
 	// If command is a shorthand, replace it with the full version
@@ -88,6 +89,10 @@ func (b *Bot) newMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	game := b.getGame(m.ChannelID)
+
+	// Lock the game for the duration of command processing
+	game.mu.Lock()
+	defer game.mu.Unlock()
 
 	switch command {
 	case "newgame":

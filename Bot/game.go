@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -33,6 +34,8 @@ type GameOptions struct {
 
 // Game represents the state of a poker game
 type Game struct {
+	// Mutex to protect concurrent access to the game state
+	mu sync.Mutex
 	// The type of poker game being played
 	Type *PokerType
 	// The pot manager for the game
@@ -92,9 +95,14 @@ func (g *Game) StartNewGame() {
 	g.LastRaise = nil
 }
 
-func (g *Game) GetState() GameState { return g.State }
+func (g *Game) GetState() GameState {
+	return g.State
+}
 
-func (g *Game) GetPlayers() []*Player { return g.Players }
+func (g *Game) GetPlayers() []*Player {
+	return g.Players
+}
+
 func (g *Game) GetCurrentPlayer() *Player {
 	if g.TurnIndex == -1 || g.TurnIndex >= len(g.InHand) {
 		return nil
@@ -115,7 +123,7 @@ func (g *Game) GetPlayer(user *discordgo.User) *Player {
 	return nil
 }
 
-func (g Game) IsPlayer(user *discordgo.User) bool {
+func (g *Game) IsPlayer(user *discordgo.User) bool {
 	for _, p := range g.Players {
 		if p.User.ID == user.ID {
 			return true
@@ -141,8 +149,8 @@ func (g *Game) BuyIn(user *discordgo.User, amount int, newPlayer bool) []string 
 		return []string{fmt.Sprintf("You can't buy in for more than $%d!", g.Options.MaxBuyIn)}
 	}
 
-	// update balance of a player
 	player := g.GetPlayer(user)
+	player.Balance += amount
 
 	if newPlayer {
 		return []string{fmt.Sprintf("You've bought in for $%d.", amount)}
@@ -272,6 +280,7 @@ func (g *Game) Showdown() []string {
 	// Go on to the next round
 	g.State = NoHands
 	g.NextDealer()
+
 	return append(messages, g.StatusBetweenRounds()...)
 }
 
@@ -280,7 +289,7 @@ func (g *Game) NextDealer() {
 }
 
 func (g *Game) Fold() []string {
-	var messages []string
+	messages := []string{}
 
 	if g.Verbose {
 		messages = append(messages, fmt.Sprintf("%s has folded.", g.GetCurrentPlayer().Name))
@@ -363,10 +372,10 @@ func (g *Game) Check() []string {
 }
 
 func (g *Game) AllIn() []string {
-	if g.PotManager.CurBet() > g.GetCurrentPlayer().MaxBet() {
+	if g.PotManager.CurBet() > g.Type.MaxBet(g.GetCurrentPlayer(), &g.PotManager) {
 		return g.Call()
 	} else {
-		return g.Raise(g.GetCurrentPlayer().MaxBet() - g.PotManager.CurBet())
+		return g.Raise(g.Type.MaxBet(g.GetCurrentPlayer(), &g.PotManager) - g.PotManager.CurBet())
 	}
 }
 
@@ -481,6 +490,7 @@ func (g *Game) DealHands() []string {
 	// Deals hands to each player, setting their initial bets to zero and
 	// adding them as being in on the hand
 	g.InHand = make([]*Player, 0)
+
 	for _, player := range g.Players {
 		player.Cards = g.Type.DealHand()
 		player.CurBet = 0
@@ -498,6 +508,7 @@ func (g *Game) DealHands() []string {
 	if g.Options.SmallBlind > 0 {
 		messages = append(messages, g.PayBlinds()...)
 	}
+
 	g.TurnIndex--
 	messages = append(messages, g.NextTurn()...)
 	return messages
