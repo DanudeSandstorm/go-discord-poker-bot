@@ -21,8 +21,11 @@ func NewPotLimitOmaha() PokerType {
 			return "Pot Limit Omaha"
 		},
 		MaxBet: func(player *Player, pm *PotManager) int {
-			// in plo the maximum bet is 3x the last bet + the previous pot
-			return util.Min(player.MaxBet(), pm.Value()-pm.LastBet+(3*pm.LastBet))
+			// 3x last bet + previous pot - player's current bet that round
+			return util.Min(
+				player.MaxBet(),
+				(3*pm.LastBet)+(pm.Value()-pm.LastBet)-player.CurBet,
+			)
 		},
 	}
 }
