@@ -25,7 +25,7 @@ type Player struct {
 
 // Returns the amount of money that can be bet by the player
 func (p *Player) MaxBet() int {
-	return util.Min(p.Balance, p.CurBet+p.Balance)
+	return p.CurBet + p.Balance
 }
 
 // Increases the player's bet to match newAmount
