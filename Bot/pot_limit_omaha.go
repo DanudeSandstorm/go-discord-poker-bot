@@ -20,6 +20,10 @@ func NewPotLimitOmaha() PokerType {
 		String: func() string {
 			return "Pot Limit Omaha"
 		},
+		MaxBet: func(player *Player, pm *PotManager) int {
+			// in plo the maximum bet is 3x the last bet + the previous pot
+			return util.Min(player.MaxBet(), pm.Value()-pm.LastBet+(3*pm.LastBet))
+		},
 	}
 }
 

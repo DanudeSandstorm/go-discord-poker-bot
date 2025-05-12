@@ -82,7 +82,8 @@ type PotManager struct {
 	// List of side pots in the game
 	// If nobody's all-in, there should only be one pot
 	// Higher-priced pots are towards the end of the list
-	Pots []Pot
+	Pots    []Pot
+	LastBet int
 }
 
 func NewPotManager() PotManager {
@@ -129,6 +130,7 @@ func (pm *PotManager) IncreaseBet(newAmount int) {
 	}
 	newBet := util.Min(pm.Pots[len(pm.Pots)-1].MaxBet, newAmount)
 	pm.Pots[len(pm.Pots)-1].CurBet = newBet - accumulatedBet
+	pm.LastBet = newAmount
 }
 
 // Returns all the players that are in the pot
@@ -179,6 +181,7 @@ func (pm *PotManager) PayBlind(player *Player, blind int) bool {
 // Returns whether the betting round is over
 func (pm PotManager) RoundOver() bool {
 	if pm.BettingOver() {
+		pm.LastBet = 0
 		return true
 	}
 	for player := range pm.Pots[0].Players {
@@ -189,6 +192,7 @@ func (pm PotManager) RoundOver() bool {
 			return false
 		}
 	}
+	pm.LastBet = 0
 	return true
 }
 

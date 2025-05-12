@@ -344,6 +344,12 @@ func (g *Game) Call() []string {
 func (g *Game) Raise(amount int) []string {
 	messages := []string{}
 
+	maxBet := g.Type.MaxBet(g.GetCurrentPlayer(), &g.PotManager)
+
+	if amount > maxBet {
+		amount = maxBet
+	}
+
 	g.PotManager.HandleRaise(g.GetCurrentPlayer(), amount)
 
 	if g.Verbose {
@@ -362,10 +368,15 @@ func (g *Game) Raise(amount int) []string {
 func (g *Game) Check() []string {
 	messages := []string{}
 
+	// Verify that the player can check (current bet equals bet to meet)
+	if g.PotManager.CurBet() != g.GetCurrentPlayer().CurBet {
+		return []string{"You cannot check - there is a bet to meet!"}
+	}
+
 	g.GetCurrentPlayer().PlacedBet = true
 
 	if g.Verbose {
-		messages = append(messages, fmt.Sprintf("%s calls.", g.GetCurrentPlayer().Name))
+		messages = append(messages, fmt.Sprintf("%s checks.", g.GetCurrentPlayer().Name))
 	}
 
 	return append(messages, g.NextTurn()...)

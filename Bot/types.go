@@ -18,4 +18,5 @@ type PokerType struct {
 	BestHand BestHandFunc
 	DealHand func() []Card
 	String   func() string
+	MaxBet   func(player *Player, pm *PotManager) int
 }

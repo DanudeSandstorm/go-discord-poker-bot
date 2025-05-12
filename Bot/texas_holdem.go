@@ -20,6 +20,9 @@ func NewTexasHoldem() PokerType {
 		String: func() string {
 			return "Texas Hold'em"
 		},
+		MaxBet: func(player *Player, pm *PotManager) int {
+			return player.MaxBet()
+		},
 	}
 }
 
